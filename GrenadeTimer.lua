@@ -5,6 +5,8 @@ registerWidget("GrenadeTimer");
 
 local counter, counter2, counter3 = 0, 0, 0 -- each grenade timer
 local canFire = true -- keep track of when the player can fire
+local canFireTimer = 0-- can we fire timer
+local freshSpawn = true -- are we freshly spawned?
 local uBG = Color(255,255,255,128); -- color of the 'clock'
 local uGradientStart = Color(255,255,255,255); -- color at top of arc for grenades
 local uGradientEnd = Color(255,0,0,255); -- color of bottom of arc for grenades
@@ -25,6 +27,21 @@ local function drawGrenadeArc(cnt) -- show the position of the grenade on the ci
 		nvgArc(0,0,120,(cnt+offset) * math.pi,(cnt+strokeLength+offset) * math.pi,2);
 		nvgStrokeLinearGradient(0,-80,0,80,uGradientStart,uGradientEnd);
 		nvgStroke();
+end
+
+local function timerControl()
+	if counter > 0 then 
+		counter = counter - deltaTime
+	end
+	if counter2 > 0 then 
+		counter2 = counter2 - deltaTime
+	end
+	if counter3 > 0 then 
+		counter3 = counter3 - deltaTime
+	end
+	if canFireTimer > 0 then
+		canFireTimer = canFireTimer - deltaTime
+	end
 end
 
 local function drawOuterCircle() -- show the outer circle and line
@@ -71,13 +88,33 @@ function GrenadeTimer:draw()
 	-- pull in stored user variables
     local raceOnly = self.userData.raceOnly
     local alwaysCircle = self.userData.alwaysCircle
+
+	--timers tick no matter what (this makes it correct when dead)
+	timerControl();
 	
 	if raceOnly and not isRaceMode() then return end;
-	if not shouldShowHUD() then return end;
- 
+	if not shouldShowHUD() then freshSpawn = true return end; --this is called when the player dies, set freshSpawn true here
+  
+ 	-- draw the 'clock'
+	if alwaysCircle or counter > 0 or counter2 > 0 or counter3 > 0 then
+		drawOuterCircle();
+	end
+
 	local player = getPlayer();
 	if not player then return end;
- 
+	
+	--did we just spawn? if yes, set a 50ms grace period before we can fire.
+	if player.health > 0 and freshSpawn == true then
+		if player.buttons.attack then 
+			return 
+		else
+			canFire = false
+			freshSpawn = false
+			canFireTimer = .05
+			return
+		end
+	end
+	
 	if player.buttons.attack and player.weaponIndexSelected == 4 and canFire then
 		canFire = false
 		-- the player just fired a grenade, take the first available counter
@@ -90,25 +127,17 @@ function GrenadeTimer:draw()
 		end
 	end
 
-	-- reset the 'canFire' variable if no grenade has been shot in the last 0.8 seconds
-	if counter < 1.2 and counter2 < 1.2 and counter3 < 1.2 then canFire = true end
-
-	-- draw the 'clock'
-	if alwaysCircle or counter > 0 or counter2 > 0 or counter3 > 0 then
-		drawOuterCircle();
-	end
+	-- reset the 'canFire' variable if no grenade has been shot in the last 0.8 seconds, AND if our spawn grace period is over
+	if counter < 1.2 and counter2 < 1.2 and counter3 < 1.2 and canFireTimer <= 0 then canFire = true end
 	
 	-- draw the grenade arcs
 	if counter > 0 then 
 		drawGrenadeArc(counter) 
-		counter = counter - deltaTime
 	end
 	if counter2 > 0 then 
 		drawGrenadeArc(counter2) 
-		counter2 = counter2 - deltaTime
 	end
 	if counter3 > 0 then 
 		drawGrenadeArc(counter3) 
-		counter3 = counter3 - deltaTime
 	end
 end
