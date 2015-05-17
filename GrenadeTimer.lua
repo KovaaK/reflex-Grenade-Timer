@@ -21,7 +21,6 @@ function SetSettings()
     consolePerformCommand("ui_set_widget_offset GrenadeTimer 0 240");
     consolePerformCommand("ui_set_widget_scale GrenadeTimer 0.4");
 end
-SetSettings(); 
 
 local function drawGrenadeArc(cnt) -- show the position of the grenade on the circle
 		nvgBeginPath();
@@ -52,7 +51,11 @@ function GrenadeTimer:initialize()
 	CheckSetDefaultValue(self, "userData", "table", {});
 	CheckSetDefaultValue(self.userData, "raceOnly", "boolean", false);
 	CheckSetDefaultValue(self.userData, "alwaysCircle", "boolean", true);
-	
+	CheckSetDefaultValue(self.userData, "firstRun", "boolean", true);
+	if self.userData.firstRun == true then
+		SetSettings(); 
+		self.userData.firstRun = false
+	end
 end 
 
 function GrenadeTimer:drawOptions(x, y)
